@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat WebSocket</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        #conversationDiv { visibility: hidden; }
+        #response { margin-top: 10px; }
+    </style>
+    <script type="text/javascript">
+        let stompClient = null;
+
+        function setConnected(connected) {
+            document.getElementById('connect').disabled = connected;
+            document.getElementById('disconnect').disabled = !connected;
+            document.getElementById('conversationDiv').style.visibility = connected ? 'visible' : 'hidden';
+            document.getElementById('response').innerHTML = '';
+        }
+
+        function connect() {
+            const socket = new SockJS('/chat');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, (frame) => {
+                setConnected(true);
+                console.log('Connected: ' + frame);
+                stompClient.subscribe('/topic/messages', (messageOutput) => {
+                    showMessageOutput(JSON.parse(messageOutput.body));
+                });
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+            }
+            setConnected(false);
+            console.log("Disconnected");
+        }
+
+        function sendMessage() {
+            const from = document.getElementById('from').value;
+            const text = document.getElementById('text').value;
+            stompClient.send("/app/chat", {}, JSON.stringify({ 'from': from, 'text': text }));
+        }
+
+        function showMessageOutput(messageOutput) {
+            const response = document.getElementById('response');
+            const p = document.createElement('p');
+            p.style.wordWrap = 'break-word';
+            p.textContent = `${messageOutput.from}: ${messageOutput.text} (${messageOutput.time})`;
+            response.appendChild(p);
+        }
+    </script>
+</head>
+<body onload="disconnect()">
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="form-group">
+                <input type="text" class="form-control" id="from" placeholder="Choose a nickname">
+            </div>
+            <div class="form-group">
+                <button id="connect" class="btn btn-primary" onclick="connect();">Connect</button>
+                <button id="disconnect" class="btn btn-danger" disabled onclick="disconnect();">Disconnect</button>
+            </div>
+            <div id="conversationDiv">
+                <div class="form-group">
+                    <input type="text" class="form-control" id="text" placeholder="Write a message...">
+                </div>
+                <button id="sendMessage" class="btn btn-success" onclick="sendMessage();">Send</button>
+                <div id="response" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
